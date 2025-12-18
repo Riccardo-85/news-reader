@@ -1,14 +1,5 @@
 {
   "buildCommand": "cd web && npm install && npm run build",
   "outputDirectory": "web/dist",
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+  "cleanUrls": true
 }
