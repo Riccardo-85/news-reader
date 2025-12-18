@@ -45,8 +45,7 @@ export async function fetchAllNews(params: FetchParams, signal?: AbortSignal): P
     q.set('categories', params.category);
   }
 
-  const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
-  const url = `${apiBase}/news/all?${q.toString()}`;
+  const url = `/api/news?${q.toString()}`;
   console.debug('[client] GET', url);
 
   const res = await fetch(url, { signal });
