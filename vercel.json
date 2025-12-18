@@ -1,9 +1,6 @@
 {
   "buildCommand": "npm --prefix web run build",
   "outputDirectory": "web/dist",
-  "env": {
-    "THENEWSAPI_TOKEN": "@thenewsapi_token"
-  },
   "functions": {
     "api/*.js": {
       "runtime": "nodejs18.x"
