@@ -39,7 +39,7 @@ export async function fetchAllNews(params: FetchParams, signal?: AbortSignal): P
   q.set('limit', '3');
   q.set('page', String(params.page));
 
-  if ('search' in params && params.search.trim()) {
+  if ('search' in params && params.search !== undefined && params.search.trim()) {
     q.set('search', params.search.trim());
   } else if ('category' in params && params.category) {
     q.set('categories', params.category);

@@ -34,6 +34,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [favoritesView, setFavoritesView] = useState(false);
   const [favorites, setFavorites] = useState<Record<string, Article>>({});
+  const [favoritesIndex, setFavoritesIndex] = useState(0);
 
   const inflight = useRef<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
@@ -161,65 +162,28 @@ export default function App() {
   }, [index, page, items, favoritesView, getCached, fetchPage]);
 
   const absoluteNumbers: [number, number, number] = useMemo(() => {
+    if (favoritesView) {
+      return [favoritesIndex + 1, favoritesIndex + 2, favoritesIndex + 3];
+    }
     const start = (page - 1) * 3 + 1;
     return [start, start + 1, start + 2];
-  }, [page]);
+  }, [page, favoritesView, favoritesIndex]);
 
-  // Navigation handlers
-  const goFirstPage = useCallback(() => {
-    setPage(1);
-    setIndex(0);
-  }, []);
-
-  const goPrev = useCallback(() => {
-    if (favoritesView) return;
-    if (!items) return;
-    if (index > 0) {
-      setIndex((i) => i - 1);
-    } else if (page > 1) {
-      const cached = getCached(page - 1);
-      // Instant swap if cached; otherwise fetch and then show
-      if (cached) {
-        setPage((p) => p - 1);
-        setIndex(2);
-      } else {
-        setPage((p) => p - 1);
-        setIndex(2);
-        // Only show spinner if not cached
-        setPageLoading(true);
-        fetchPage(page - 1).finally(() => setPageLoading(false));
-      }
-    }
-  }, [favoritesView, items, index, page, getCached, fetchPage]);
-
-  const goNext = useCallback(() => {
-    if (favoritesView) return;
-    if (!items) return;
-    if (index < Math.max(0, items.length - 1)) {
-      setIndex((i) => i + 1);
-    } else {
-      // Next page
-      const cached = getCached(page + 1);
-      if (cached) {
-        setPage((p) => p + 1);
-        setIndex(0);
-      } else {
-        setPage((p) => p + 1);
-        setIndex(0);
-        setPageLoading(true);
-        fetchPage(page + 1).finally(() => setPageLoading(false));
-      }
-    }
-  }, [favoritesView, items, index, page, getCached, fetchPage]);
+  // Navigation is handled via dots/clicks; previous arrow handlers removed.
 
   const onDotClick = useCallback((i: number) => {
-    setIndex(i);
-  }, []);
+    if (favoritesView) {
+      setFavoritesIndex(i);
+    } else {
+      setIndex(i);
+    }
+  }, [favoritesView]);
 
   // Favorites view toggle should not break navigation.
   const enterFavorites = useCallback(() => {
     if (favoritesView) return;
     prevLiveState.current = { mode, page, index, cache };
+    setFavoritesIndex(0); // reset to first favorite
     setFavoritesView(true);
     setLoading(false);
     setPageLoading(false);
@@ -241,7 +205,7 @@ export default function App() {
   }, []);
 
   const favoritesArray = useMemo(() => Object.values(favorites), [favorites]);
-  const favoriteArticle = useMemo(() => favoritesArray[0] || null, [favoritesArray]); // show one at a time: first saved
+  const favoriteArticle = useMemo(() => favoritesArray[favoritesIndex] || null, [favoritesArray, favoritesIndex]);
 
   // Apply search-vs-category rule when submitting search
   const onSearchSubmit = useCallback(
@@ -291,7 +255,7 @@ export default function App() {
               {CATEGORIES.map((c) => (
                 <button
                   key={c}
-                  className={`chip-btn ${mode.type === 'category' && mode.value === c ? 'active' : ''}`}
+                  className={`chip-btn ${!favoritesView && mode.type === 'category' && mode.value === c ? 'active' : ''}`}
                   onClick={() => onCategorySelect(c)}
                 >
                   {c}
@@ -327,15 +291,13 @@ export default function App() {
         <HeadlinesList
           article={currentArticleToShow}
           absoluteIndexNumbers={absoluteNumbers}
-          currentIndex={index}
-          onPrev={goPrev}
-          onNext={goNext}
-          onFirstPage={goFirstPage}
+          currentIndex={favoritesView ? favoritesIndex : index}
           onDotClick={onDotClick}
           isFavorite={isFavorite}
           onToggleFavorite={toggleFavorite}
           isLoading={isLoading}
           isFavoritesView={favoritesView}
+          totalFavorites={favoritesArray.length}
         />
         {!favoritesView && (
           <div className="debug">

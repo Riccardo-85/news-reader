@@ -32,6 +32,13 @@ app.get('/api/news/all', async (req, res) => {
     const params = new URLSearchParams();
     params.set('language', 'en');
     params.set('limit', '3');
+    params.set('sort', 'published_at');
+
+    // Filter to articles from last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const publishedAfter = sevenDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+    params.set('published_after', publishedAfter);
 
     // Pagination
     const page = Number(incoming.page || '1');
@@ -71,6 +78,8 @@ app.get('/api/news/all', async (req, res) => {
       }
     });
 
+    const raw = await upstreamRes.text();
+
     // Map known errors
     if (upstreamRes.status === 429) {
       return res.status(429).json({ error: 'Daily request limit reached. Please try again later.' });
@@ -81,27 +90,43 @@ app.get('/api/news/all', async (req, res) => {
 
     const contentType = upstreamRes.headers.get('content-type') || '';
     if (!upstreamRes.ok) {
-      const text = await upstreamRes.text();
-      return res.status(upstreamRes.status).json({ error: `Upstream error: ${text || upstreamRes.statusText}` });
+      return res.status(upstreamRes.status).json({ error: `Upstream error: ${raw || upstreamRes.statusText}` });
     }
 
+    // If JSON, parse and forward
     if (contentType.includes('application/json')) {
-      const data = await upstreamRes.json();
+      let data;
+      try {
+        data = JSON.parse(raw || '{}');
+      } catch (e) {
+        return res.status(502).json({ error: 'Invalid JSON from upstream.' });
+      }
       // Avoid caching on proxy, client manages cache
       res.set('Cache-Control', 'no-store');
       return res.json(data);
-    } else {
-      // Unexpected content type
-      const buf = await upstreamRes.buffer();
-      res.set('Cache-Control', 'no-store');
-      res.set('Content-Type', contentType || 'application/octet-stream');
-      return res.send(buf);
     }
+
+    // Otherwise forward raw text/binary
+    res.set('Cache-Control', 'no-store');
+    res.set('Content-Type', contentType || 'application/octet-stream');
+    return res.send(raw);
   } catch (err) {
     console.error('[proxy] Error:', err && err.message ? err.message : err);
     return res.status(500).json({ error: 'Unexpected server error.' });
   }
 });
+
+// Serve built frontend if available
+const distPath = path.resolve(__dirname, '..', 'web', 'dist');
+const fs = require('fs');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    // Only serve index.html for non-API routes
+    if (req.path.startsWith('/api/')) return res.status(404).end();
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Proxy server listening on http://localhost:${PORT}`);

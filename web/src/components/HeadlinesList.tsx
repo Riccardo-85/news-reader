@@ -3,30 +3,30 @@ import type { Article } from '@/lib/newsapi';
 type Props = {
   article: Article | null;
   absoluteIndexNumbers: [number, number, number];
-  currentIndex: number; // 0..2 within current page
-  onPrev: () => void;
-  onNext: () => void;
-  onFirstPage: () => void;
+  currentIndex: number; // 0..2 within current page, or favorites index in favorites view
   onDotClick: (i: number) => void;
   isFavorite: (a: Article) => boolean;
   onToggleFavorite: (a: Article) => void;
   isLoading: boolean;
   isFavoritesView: boolean;
+  totalFavorites?: number;
 };
 
 export default function HeadlinesList({
   article,
   absoluteIndexNumbers,
   currentIndex,
-  onPrev,
-  onNext,
-  onFirstPage,
   onDotClick,
   isFavorite,
   onToggleFavorite,
   isLoading,
-  isFavoritesView
+  isFavoritesView,
+  totalFavorites = 0
 }: Props) {
+  // In favorites view, show dots for each favorite; in regular view, show pagination numbers
+  const dotsToShow = isFavoritesView
+    ? Array.from({ length: totalFavorites }, (_, i) => i + 1)
+    : absoluteIndexNumbers;
   return (
     <div className="content-area">
       {isLoading ? (
@@ -87,14 +87,8 @@ export default function HeadlinesList({
             </div>
           </div>
           <nav className="pager" aria-label="Article pagination">
-            <button className="pager-btn" onClick={onFirstPage} title="First page">
-              «
-            </button>
-            <button className="pager-btn" onClick={onPrev} title="Previous">
-              ‹
-            </button>
             <div className="dots">
-              {absoluteIndexNumbers.map((num, i) => (
+              {dotsToShow.map((num, i) => (
                 <button
                   key={num}
                   className={`dot ${i === currentIndex ? 'active' : ''}`}
@@ -106,9 +100,6 @@ export default function HeadlinesList({
                 </button>
               ))}
             </div>
-            <button className="pager-btn" onClick={onNext} title="Next">
-              ›
-            </button>
           </nav>
         </article>
       )}
