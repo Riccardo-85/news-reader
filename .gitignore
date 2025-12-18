@@ -29,3 +29,5 @@ web/.env
 # Misc
 coverage/
 .tmp/
+.vercel
+.env*.local
